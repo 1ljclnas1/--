@@ -721,3 +721,288 @@ int main(){
     std::cout << bt3.a << std::endl;
 }
 ```
+
+## 类型别名和别名模板 C++11 C++14
+
+typedef在定义函数类型别名和定义其他类型别名的时候有区别，而使用using不存在区别。
+
+### 别名模板
+
+本质上也是一种模板，它的实例化过程是用自己的模板参数替换原是模板的模板参数，并实例化原始模板。
+
+```cpp
+template < template-parameter-list>
+using identifier = type-id
+```
+
+其中template-parameter-list是模板的形参列表，而identifier和type-id是别名类模板型名和原始类模板型名。
+
+```cpp
+#include <map>
+#include <string>
+
+template<class T>
+using int_map = std::map<int, T>;
+
+...
+```
+
+用typedef同样可以达到
+
+```cpp
+#include <map>
+#include <string>
+
+template <class T>
+struct int_map {
+    typedef std::map<int, T> type;
+};
+
+int main(){
+    int_map<std::string>::type int2string;
+    ...
+}
+```
+
+这样麻烦不少，而且遇到待决类型还要在变量声明前加上typename
+
+```cpp
+#include <map>
+#include <string>
+
+template <class T>
+struct int_map {
+    typedef std::map<int, T> type;
+};
+template<class T>
+struct X {
+    typename int_map<T>::type int2other;
+}
+```
+
+而使用using不存在这样麻烦的情况。
+
+C++11标准库还是采用typedef加类型嵌套的方案。
+
+C++14有所改善。
+
+## 指针字面量nullptr（C++11）
+
+C++11之前NULL本质就是0
+
+C++11之前使用0作为空指针常量，但总是带来歧义
+
+### nullptr关键字
+
+使用nullptr表示空指针的字面量，它是一个std::nullptr_t类型的纯右值，就是用来表示空指针，可以隐式转换到其他指针类型，但不能转换到非指针类型。
+
+有了nullptr后可以为函数模板或类设计一些空指针类型的特化版本，这在C++11之前是不可能的。
+
+## 三向比较（C++20）
+
+引入<=>比较符。
+
+<=>的返回结果不能与除0以外的任何值比较。
+
+返回类型有三种std::strong_ordering, std::weak_ordering, std::partial_ordering
+
+### std::strong_ordering
+
+有三种比较结果，std::strong_ordering::less, std::strong_ordering::equal, std::strong_ordering::greater。表达式lhs<=>rhs分别表示lhs < rhs, lhs = rhs, lhs > rhs。
+
+strong_ordering类型的结果强调的是strong含义，表达的是一种可替换性，若equal，那么任何情况下rhs和lhs都可以相互替换。
+
+对于int等基本类型，三向比较符返回strong_ordering。
+
+默认情况下自定义类型不存在三向比较运算符函数，需要用户显式默认声明,对于复杂结构的类型，std::strong_ordering要求其数据成员和基类的三向比较结构都为strong_ordering
+
+### std::weak_ordering
+
+分为三种结果std::weak_ordering::less, std::weak_ordering::equivalent以及std::weak_ordering::greater。表达的是不可替换性。
+
+### std::partial_ordering
+
+四种比较结果std::partial_ordering::less, std::partial_ordering::equivalent, std::partial_ordering::greater, std::partial_ordering::unordered。约束力比weak_ordering更弱，第四个结果表示两个比较值之间没有关系。
+
+## 第二十五章 线程局部存储（C++11）
+
+线程开始后分配，结束后回收，独立于各个线程。
+
+Linux使用了pthreads作为线程接口，可以使用pthread_key_create与pthread_key_delete创建与删除一个类型为pthread_key_t的键。利用这个键可以使用pthread_setspecific函数设置线程相关的内存数据，可以通过pthread_getspecific函数获取之前设置的内存数据。
+
+C++标准确定之前各个编译器也用了自定义的方法来支持线程局部存储如gcc和clang添加关键字_thread, VSC++使用__declspec(thread)，但是由于略有差异，且提高学习成本，因此在C++11中增加了thread_local说明符
+
+可以与static和extern结合，分别指定内部和外部链接，不过额外的static不影响对象的生命周期。
+
+使用&获取到线程局部存储变量的地址是运行时被计算出来的，他不是一个常量，因此无法与constexpr结合。
+
+同一个线程中，一个线程局部存储对象只能初始化一次，也只销毁一次，通常发生在线程退出的时刻。
+
+## 第二十六章扩展的inline说明符（C++17）
+
+C++17之前，类的非常量静态成员定义比较麻烦，很容易出现多份定义导致编译失败。
+
+因此C++17增强了inline说明符，允许内敛定义静态变量。这样即使这个类的定义作为头文件被包含在多个文件中，也没有关系。
+
+## 第二十七章 常量表达式（C++11 ~ C++20）
+
+在C++11标准以前，没有一种方法能够有效的要求一个变量或者函数在编译阶段就计算出结果。导致很多看起来合理的代码编译错误：比如case语句，数组长度，枚举成员的值以及非类型的模板参数。
+
+```cpp
+const int index0 = 0;
+#define index1 1
+switch (argc)
+{
+    case index0:
+        ...
+    case index1:
+        ...
+}
+
+
+//数组长度
+const int x_size = 5+8;
+#define y_size 6 + 7
+char buffer[x_x_size][y_size] = { 0 };
+
+//枚举成员
+enum {
+    enum_index0 = index0,
+    enum_index1 = index1,
+};
+
+std::tuple<int, char> tp = std::make_tuple(4, '3');
+//非类型的模板参数
+int x1 = std::get<index0>(tp);
+char x2 = std::get<index2>(tp);
+```
+
+上面的const和define是ok的，可以通过编译，但是如果const的常量是一个函数的返回值等在运行时的值的话，就无法通过编译了。
+
+因此定义了constexpr关键字，有效的定义常量表达式，并且达到类型安全、可移植性、方便库和嵌入式系统开发。
+
+### constexpr值
+
+它要求该值必须在编译期计算。另外常量表达式值必须被常量表达式初始化。加强版的const，缩窄版的const。
+
+### constexpr函数
+
+函数的返回值可以在编译器被计算出来。
+
+只能包含return expr一条语句。如果有形参，将形参替换到expr后依然是一个常量表达式。虽然不能用if但是可以用条件表达式。expr? 1:0;
+
+接受非常量参数会退化。
+
+### constexpr构造函数
+
+- 初始化列表中必须是常量表达式。
+
+- 构造函数函数体必须为空。
+
+使用constexpr声明自定义类型的变量，必须确保这个类的析构函数是平凡的。、
+
+### 对浮点的支持
+
+支持浮点类型。
+
+### C++14标准对常量表达式函数的增强
+
+1. 函数体允许声明变量，除了没有初始化、static和thread_local变量。
+
+2. 函数允许出现if和switch语句，不能使用go语句。
+
+3. 函数允许所有的循环语句。
+
+4. 函数可以修改生命周期和常量表达式相同的对象。
+
+5. 函数的返回值可以声明为void。
+
+6. constexpr声明的成员函数不再具有const属性。
+
+### constexpr lambdas表达式
+
+从C++17开始，lambda表达式在条件允许的情况下都会隐式声明为constexpr。
+
+### constexpr的内联属性
+
+C++17标准中，constexpr声明静态成员变量时，也被赋予了该变量的内联属性。
+
+.....还有好多，暂过
+
+## 第二十八章 确定的表达式求值顺序（C++17）
+
+表达式求值的顺序是不确定的的。
+
+从C++17开始，函数表达式一定会在函数的参数之前求值。
+
+```cpp
+#include <iostream>
+
+int printAndIncrement(int num) {
+    std::cout << "Printing number: " << num << std::endl;
+    return num + 1;
+}
+
+int main() {
+    int x = 5;
+    int result = printAndIncrement(x++);
+    std::cout << "Result: " << result << std::endl;
+    std::cout << "x: " << x << std::endl;
+    
+    return 0;
+}
+
+```
+
+在C++17之前，函数参数的求值顺序是未定义的，因此`printAndIncrement(x++)`会有不确定的结果。可能会先对`num`进行求值，再对`x`进行求值，也可能会先对`x`进行求值，再对`num`进行求值。
+
+然而，在C++17及以后的版本中，函数表达式会在函数参数之前求值。所以对于上面的代码，在C++17及以后的版本中，函数表达式`x++`会首先被求值，将`x`的值赋给`num`，然后在函数内部将`num`打印并加1。因此，程序的输出将是：
+
+Printing number: 5
+
+Result: 6
+
+x: 6
+
+## 字面量优化（C++11~C++17）
+
+### 十六进制浮点字面量
+
+从C++11开始，标准库引入了std::hexfloat和std::defaultfloat来修改浮点输入和输出的默认格式化，其中std::hexfloat可以将浮点数格式化为十六进制的字符串，而std::defaultfloat可以将格式还原到十进制。但不能在源码中使用十六进制浮点字面量来表示一个浮点数。这个问题在C++17中得到解决。
+
+### 二进制整数字面量
+
+在C++14标准中定义了二进制整数字面量前缀0b和0B
+
+### 单引号作为整数分隔符
+
+C++14可以用单引号作为整数分隔符
+
+### 原生字符串字面量
+
+R“”表示原生字符串，不必使用转义符。
+
+### 用户自定义字面量
+
+暂过
+
+### 总结
+
+增强了字面量的表达能力。
+
+## alignas和alignof（C++11 C++17）
+
+数据对齐问题
+
+### C++11之前的数据对齐方法
+
+很麻烦，没看
+
+### 使用alignof运算符
+
+```cpp
+auto x1 = alignof(int);
+auto x2 = alignof(void(*)());
+```
+
+alignof计算的对象需要是一个类型
