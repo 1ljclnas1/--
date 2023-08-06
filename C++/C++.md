@@ -948,10 +948,9 @@ int main() {
     int result = printAndIncrement(x++);
     std::cout << "Result: " << result << std::endl;
     std::cout << "x: " << x << std::endl;
-    
+
     return 0;
 }
-
 ```
 
 在C++17之前，函数参数的求值顺序是未定义的，因此`printAndIncrement(x++)`会有不确定的结果。可能会先对`num`进行求值，再对`x`进行求值，也可能会先对`x`进行求值，再对`num`进行求值。
@@ -1006,3 +1005,9 @@ auto x2 = alignof(void(*)());
 ```
 
 alignof计算的对象需要是一个类型
+
+## 第三十一章 属性说明符和标准属性
+
+## 第三十二章 新增预处理器和宏
+
+## 第三十三章 协程C++20
