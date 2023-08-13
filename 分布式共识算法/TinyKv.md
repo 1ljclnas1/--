@@ -511,8 +511,78 @@ Leader无法感知是否给某一个follower发送过snapshot，重复发送导�
 
 ![](C:\Users\ljc\Documents\GitHub\--\分布式共识算法\图片\Raftstore.PNG)
 
+#### Part II The runtime of raftstore: Batch System
 
+Raftstore 怎么跑起来？在内存里怎么组织
 
+- Batch System
+  
+  - 一个线程池
+  
+  - 每个线程跑在一个循环里面
+  
+  - 每轮循环，为活跃region处理消息，并收集其ready
+  
+  - 每轮循环结尾，集中处理所有ready
 
+##### Batch System
 
+- why not a thread pool library
+  
+  - raft中的状态不能并发更改，batch system保证单线程处理region消息
+  
+  - batch io提高效率
 
+##### Batch System - structs
+
+- Router：HashMap<region id, PeerFsm>
+  
+  - 每个peer创建时注册
+  
+  - 每个peer销毁时注销
+  
+  - PeerFsm：some states & msg_channdel
+
+- Each thread: a global Chandel<PeerFsm>
+
+##### Batch System - How to notify
+
+收到一条raft message
+
+- 如果Peer正在被线程处理
+  
+  - 根据Router找到Peer的msg_channel
+  
+  - 发送message到msg_channel
+
+- 如果Peer为正在被线程处理
+  
+  - 设置flag，避免其他线程同时处理
+  
+  - 发送Peer到全局Chandel<PeerFsm>
+  
+  - goto "如果Peer正在被线程处理"流程
+
+##### Batch System - Handling
+
+- begin: 初始化一些处理状态
+
+- handle_control: 处理一些全局相关的消息
+  
+  - store heartbeat tick
+  
+  - ...
+
+- handle_normal: 处理每个peer
+  
+  - handle raft message -> step 函数
+  
+  - collect ready -> ready函数
+
+- end：集中处理ready
+  
+  - append logs
+  
+  - 发送raft message
+  
+  - 发送 commited logs 去 apply（另一个batch system）
