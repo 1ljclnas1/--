@@ -67,5 +67,3 @@ connect是客户端发起三次握手的函数，发送SYNC后等待回复的SYN
 ### Linux socket连接模型
 
 分为三类阻塞、多进程、I/O多路复用
-
-
