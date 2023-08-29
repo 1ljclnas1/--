@@ -489,7 +489,7 @@ Leader无法感知是否给某一个follower发送过snapshot，重复发送导�
   
   - 多个独立运行的raft group
   
-  - 各个raft group的peer按高可用与负载均匀等规则均匀分布在各个TiKV节点中
+  - **各个raft group的peer按高可用与负载均匀等规则均匀分布在各个TiKV节点中**
 
 ![](C:\Users\ljc\Documents\GitHub\--\分布式共识算法\图片\Raftstore.PNG)
 
@@ -516,6 +516,8 @@ Raftstore 怎么跑起来？在内存里怎么组织
   - batch io提高效率
 
 ##### Batch System - structs
+
+内存里存了什么？
 
 - Router：HashMap<region id, PeerFsm>
   
@@ -568,3 +570,111 @@ Raftstore 怎么跑起来？在内存里怎么组织
   - 发送raft message
   
   - 发送 commited logs 去 apply（另一个batch system）
+
+##### 负载均衡
+
+根据整个集群的负载，运维规则，对TinyKV发出调度命令：
+
+- Add peer
+
+- Remove peer
+
+- Split region
+
+- Merge region
+
+- Transfer leader
+
+- ...
+
+#### Multi-Raft与Region
+
+##### Region
+
+- 基本数据单位
+
+- 数据切片，按照key range切分
+
+- 一个region一个raft group
+
+- 多个数据副本对应raft group中多个peer
+
+##### Multi-Raft
+
+- 一个集群的数据划分为多个region
+
+- 多个独立运行的raft group
+
+- 各个raft group的peer按高可用与负载均匀等规则均匀分布在各个TinyKV节点中
+
+### Part III - Handle
+
+#### Region Split
+
+为什么需要split
+
+- 加大并发
+
+- 缓解热点
+
+Split策略
+
+- 按表切分
+
+- 按大小切分
+
+- 按key个数切分
+
+- 按热点切分
+  
+  - load base split  
+
+Split流程
+
+- 后台检测region是否需要split
+
+- 为region计算split key
+
+- 向PD申请新region以及peer的ID
+
+- Leader构建split command作为一条admin raft log
+
+- 进行与普通写入一样的propose & commit流程
+
+- Apply split command
+  
+  - 根据split key计算key range
+  
+  - 并根据region id，peer id，key range等构建新region的元信息
+  
+  - 更改原region的key range
+  
+  - 不涉及数据搬迁。
+
+#### Add/Remove Peer
+
+目的一般是在TinyKV节点间移动副本
+
+- 负载均衡
+
+- 上下线TinyKV节点
+
+- 节点故障
+
+- ...
+
+通过Raft ConfChange进行
+
+- Simple Confchange：只包含一个变动
+
+- Joint consensus ConfChange：可包含多个变动 （TiKV）raft小论文的joint
+
+Add/Remove peer流程
+
+- 下发ConfChange command
+
+- ConfChange command作为admin raft log被propose & commit
+
+- Apply ConfChange command
+  
+  - 更改region元信息中的peer list
