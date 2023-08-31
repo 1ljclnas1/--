@@ -678,3 +678,167 @@ Add/Remove peer流程
 - Apply ConfChange command
   
   - 更改region元信息中的peer list
+
+Create Peer
+
+- 更改peer list后leader会向新peer发消息（如raft心跳）
+
+- Raft消息触发新peer所在节点创建peer
+
+- 新peer接收并apply snapshot
+
+Destroy Peer
+
+- Apply ConfChange
+
+- 删除数据
+
+- 清理内存结构体
+
+Merge region
+
+- 通过 admin raft log
+
+- 合并相邻key range的region
+
+- 减少region数量
+
+- ...
+
+Transfer leader
+
+- 无需admin raft log
+
+- Leader发送MsgTimeoutNow触发目标发起选举
+
+# MultiRaft坑点 & MVCC 与 Percolator
+
+1. too many open files
+
+2. TestOneSplit3B卡死
+
+3. 注意点
+
+4. MVCC
+
+5. Percolator
+
+## too many open files
+
+在2C加入日志压缩和snapshot之后，2C/3B中可能会出现too many open files的错误
+
+- 对于被网络隔离的node，状态会越来越追不上leader，当leader研所掉一部分日志导致下一次appendEntries引发快照发送时，会生成snapshot
+
+- tinykv中，leader唯一能检测到snapshot应用成功的方式，是通过心跳或appendEntries回包中的index信息
+
+- 对于网络隔离的node，snapshot永远无法应用成功，而leader会不断地生成snapshot发送给落后的follower
+
+- 测试中的tick频率非常快
+
+- snapshot的传输需要时间，这期间其实没必要生成框招
+
+所以，需要有一种手段来标定快照状态（比如传输中），也需要标定follower的状态，follower不处于active时不发送快照。
+
+## MVCC和SI
+
+MVCC就是保存数据多个不同的提交版本，常被用来实现Read Commited和Snapshot Isolation两种隔离级别
+
+对于percolator，版本号采用的是通过一个授时服务来分发时间戳
+
+对于SI来说，数据对象的可见性一般需要吗，满足两个条件
+
+1. 事务开始时刻，创建该对象的事务已经完成了提交。（$A_{commitTs}$ <$B_{startTs}$
+
+2. 对象没有被标记为删除；或即使被标记为删除，但是删除事务在当前事务开始时还没有完成提交。
+
+基于这个性质，读操作可以非常高效。
+
+## Key编码
+
+在percolator中有5类column family，lock/write/data/notify/ack_O，其中后两者是为了实现observers功能设置的，这在tinykv中没有，所以在tinykv中其实只有三种columnfamily，lock/write/default
+
+这三者的编码方式如下：
+
+default: (key, start_ts) => value
+
+lock:       key => lock_info
+
+write:     (key, commit_ts) => write_info
+
+
+
+lock_info中含有promary key的信息，write_info中有事务start_ts和一些其他信息
+
+## Prewrite
+
+prewrite发生在提交之前，程序会尝试对写入进行上锁，同时将数据直接写入data。此外，对于每一笔事务，会在所有写入中选择一条写入作为primary，作为该笔事务的同步点。写入前进行两个判断：
+
+1. 一旦发现在start_ts之后，有别的事务已经完成对相同位置的写入，表明存在写写冲突，直接放弃事务
+
+2. 一旦发现相同位置上存在一把锁，直接放弃。这样可以避免死锁。
+
+在tinykv中，读通过发送snap指令拿到badger的txn，而写通过apply时的WriteBatch原子写入，为了保证一致性，需要用latch上锁。
+
+## Commit
+
+1. 选中一条write作为primary，同时将所有写操作进行perwrite，入托perwrite失败视为事务失败
+
+2. 获取commit_ts
+
+3. 提交primary（到这步成功，整个事务可以视为完成）
+   
+   - 查看lock是否还存在
+   
+   - 写入write cf，删除lock
+
+4. 提交剩余write，不需要以事务的形式提交，这里任何一步当即都无所谓
+   
+   - 如果write cf失败，后续可以在lock中读到primary和start_ts信息，然后通过txn.CurrentWrite来找到commit_ts
+   
+   - 如果删除lock失败，可以通过lock中的primary信息上诉查看primary lock，如果primary lock已经被删除，代表事务已经结束（完成或回滚），可以删除lock
+
+## 流程
+
+## Get
+
+读事务首先会检索要读取的数据是否被上锁，如果一直读不到的话可能会尝试清除锁。
+
+执行这一步的原因是，假设$A_{startTs} > B_{startTs}$ ,事务A可能会读到事务B的锁而由于存在可能$A_{startTs} > B_{commitTs}$,此时B正在执行事务的第二阶段提交，处于快照隔离的保证，A要能够读到B的写入，如果此时B还没有写入write和删除lock，A需要等待。
+
+## 分析
+
+对于一个分布式事务，能正确地处理失败是至关重要的，在分布式环境下，故障宕机被视为一种常态现象。在percolator中，常常由其他事务来rollback/rollforward事务，也因此，需要有能力来判断其他食物处于一个什么状态。
+
+结合上面对伪代码的分析，不难判断最复杂的一部分就是当遇到锁时该如何判断目标事务的状态。假设一个事务B读到锁L（无论Get/Perwrite），可以通过锁中的primary和start_ts信息做出判断
+
+- 由于primary地prewrite发生在其他write之前，所以遇到锁说明目标事务的primary一定已经完成prewrite
+
+- 如果找不到primary锁（等价于事务已完成/回滚），锁L可以被删除，同时对应的write cf也可以被写入
+
+- 如果找到了primary锁（等价于事务未完成），那么对应的事务可能已经挂了或者仍在执行，此时需要判断目标的存活情况。
+  
+  - 在percolator中，使用chubby锁服务来进行事务活跃度地判定
+  
+  - 在tinykv中，有TTL机制。
+
+这部分关键的两个函数是KvCheckTxnStatus，KvResolveLock
+
+
+
+TinyKV的server的几个事务接口比较怪。做了优化处理。它并不是一个一个key处理，先处理primary
+
+而是说，将事务关联的key根据region等信息划分为多个batch，并总是先执行primary batch。对于遇到lock的情况，因为目标key和它的primary可能不在一个region上，所以也是先返回携带lockInfo的错误信息，然后由client去检测其他事务的状态。
+
+SI并不能解决写倾斜的问题（但是SSI可以）
+
+假设某科室至少需要一个人值班，当前有AB两个人，现在AB都想请假跑路，现在两人同时申请了请假，系统自动处理这个流程
+
+1. 查询值班室人数是否大于等于2
+
+2. 如果大于等于2，更新A/B为请假。
+
+由于SI的性质，读操作不加锁，写操作由于AB是不相关的数据，所以不存在写写冲突，因而最后两个人都能申请成功，然后就没人值班了。
+
+写倾斜常见的发生场景就是，读后根据读的结果写，写可能修改读的结果。
+
+解决方案就是给读操作上锁或串行执行。
