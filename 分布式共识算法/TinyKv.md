@@ -391,7 +391,7 @@ Prevote机制：
 
 1. 节点A决定选举，先不自增Term，改变自己的投票状态
 
-2. 相机群其他节点发送一个PreVote消息。该消息携带的内容与RequestVote一致（Term都是A的Term+1），名字仅用于区别两种消息。同时A更新自身的投票状态（即PreVote发起时，不投票给自己）
+2. 向集群其他节点发送一个PreVote消息。该消息携带的内容与RequestVote一致（Term都是A的Term+1），名字仅用于区别两种消息。同时A更新自身的投票状态（即PreVote发起时，不投票给自己）
 
 3. 其他节点收到消息后，判断是否支持该选举请求，并返回结果。判断方式与RequestVote相同，但步更新自身的投票状态。
 
@@ -437,7 +437,7 @@ peer层的时候，写代码不要太耦合，不利于3b做新的处理逻辑�
 
 2. Send
    
-   Leader认为有follower落后太多的时候，发一个Snapshot过去（peer.sendRaftMessage，通过transport发送到其他节点）ServerTransport.SendSnalshotSock()
+   Leader认为有follower落后太多的时候，发一个Snapshot过去（peer.sendRaftMessage，通过transport发送到其他节点）ServerTransport.SendSnapshotSock()
 
 3. Apply
    
@@ -765,8 +765,6 @@ lock:       key => lock_info
 
 write:     (key, commit_ts) => write_info
 
-
-
 lock_info中含有promary key的信息，write_info中有事务start_ts和一些其他信息
 
 ## Prewrite
@@ -822,8 +820,6 @@ prewrite发生在提交之前，程序会尝试对写入进行上锁，同时将
   - 在tinykv中，有TTL机制。
 
 这部分关键的两个函数是KvCheckTxnStatus，KvResolveLock
-
-
 
 TinyKV的server的几个事务接口比较怪。做了优化处理。它并不是一个一个key处理，先处理primary
 
