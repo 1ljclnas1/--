@@ -755,7 +755,7 @@ MVCC就是保存数据多个不同的提交版本，常被用来实现Read Commi
 
 ## Key编码
 
-在percolator中有5类column family，lock/write/data/notify/ack_O，其中后两者是为了实现observers功能设置的，这在tinykv中没有，所以在tinykv中其实只有三种columnfamily，lock/write/default
+在percolator中有5类column family，lock/write/data/notify/ack_O，其中后两者是为了实现observers功能设置的，这在tinykv中没有，所以在tinykv中其实只有三种column family，lock/write/default
 
 这三者的编码方式如下：
 
@@ -765,7 +765,7 @@ lock:       key => lock_info
 
 write:     (key, commit_ts) => write_info
 
-lock_info中含有promary key的信息，write_info中有事务start_ts和一些其他信息
+lock_info中含有primary key的信息，write_info中有事务start_ts和一些其他信息
 
 ## Prewrite
 
