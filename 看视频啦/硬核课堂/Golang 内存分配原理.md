@@ -2,8 +2,6 @@
 
 [Golang 内存分配原理_哔哩哔哩_bilibili](https://www.bilibili.com/video/BV16B4y1m7PC/?spm_id_from=333.337.search-card.all.click&vd_source=6624455d15d4e57b52b279d7da88fa40)
 
-
-
 为什么栈比对快？栈中出栈入栈只需要两个指令一个push一个pop。堆内存分配比较复杂
 
 借鉴了TCMalloc，尽量减少在多线程模型下的，线程开销
@@ -47,7 +45,7 @@ type mspan struct {
     startAddr uintptr
     npages    uintptr
     freeindex uintptr
-    
+
     allocBits    *gcBits    // 用于标记内存的占用情况
     gcmarkBits    *gcBits    // 用于标记内存的回收情况
     allocCache    uint64    // allocBits的补码，可以用于快速查找未被使用的内存
@@ -186,4 +184,18 @@ local_tinyallocs会记录内存分配器中分配的对象个数
 
 场景：
 
-函数返回局部变量指针引起的逃逸
+1. 函数返回局部变量指针引起的逃逸
+
+2. 动态类型引起的逃逸
+
+3. 栈空间不足引起的逃逸
+
+4. 闭包引用的逃逸：闭包函数中没有定义变量i的，而是引用了它所在函数f中的变量i，变量i发生逃逸。
+
+### 如何利用逃逸分析提高性能？
+
+#### 传值vs传指针
+
+传指针可以减少对象拷贝，但是会引发逃逸到堆，增加垃圾回收的负担
+
+因此对于大对象才传指针，小对象传值更好

@@ -34,7 +34,9 @@ M列表：当前操作系统分配到Go程序的内核线程数，M的数量与P
 
 - ![](C:\Users\ljc\Documents\GitHub\--\看视频啦\刘丹冰Aceld\图片\work%20stealing.PNG)
 
-- hand off 机制：一旦G1协程阻塞，很显然，要尝试或者唤醒一个新的M，把P1迁移到新的M3上，然后M1继续运行G1![](C:\Users\ljc\Documents\GitHub\--\看视频啦\刘丹冰Aceld\图片\hand%20off.PNG)
+- hand off 机制：一旦G1协程阻塞，很显然，要尝试或者唤醒一个新的M，把P1迁移到新的M3上，然后M1继续运行G1
+
+- ![](C:\Users\ljc\Documents\GitHub\--\看视频啦\刘丹冰Aceld\图片\hand%20off.PNG)
 
 ### 利用并行
 
