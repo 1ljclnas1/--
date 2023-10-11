@@ -116,7 +116,7 @@ TiKV通常部署为多个TiKV server，基本的处理流程（未优化
 
 #### Ready
 
-![](C:\Users\ljc\Documents\GitHub\--\分布式共识算法\图片\Ready.PNG)
+![](C:\Users\ljc\Documents\GitHub\--\读书啦\分布式\分布式共识算法\图片\Ready.PNG)
 
 #### 从Peer的角度看整体的流程
 

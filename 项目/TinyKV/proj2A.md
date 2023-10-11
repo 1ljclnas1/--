@@ -48,4 +48,12 @@ TermNoErr: 不返回错误
 
 # 实现raw Node接口
 
+**Ready结构体** 用于保存已经处于ready状态的日志和消息，准备保存到持久存储、提交或者发送给其他节点的。
 
+Ready函数 获取当前时间点的RawNode的状态
+
+NewRawNode 创建底层Raft节点
+
+Ready结构体
+
+raft Worker不停的run，处理msgs的消息，给对应的peer进行处理，最后处理ready消息
