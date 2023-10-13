@@ -1,0 +1,3 @@
+C:/Users/ljc/Documents/GitHub/--/tearCode/cmake-build-debug/CMakeFiles/tearCode.dir
+C:/Users/ljc/Documents/GitHub/--/tearCode/cmake-build-debug/CMakeFiles/edit_cache.dir
+C:/Users/ljc/Documents/GitHub/--/tearCode/cmake-build-debug/CMakeFiles/rebuild_cache.dir

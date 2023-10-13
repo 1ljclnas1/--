@@ -1,0 +1,17 @@
+# ninja log v5
+3	662	7187167987271169	CMakeFiles/tearCode.dir/main.cpp.obj	10c0456d55f65f7f
+7	766	7187167988311170	CMakeFiles/tearCode.dir/srcs/LRU.cpp.obj	4b2ce76c746d120c
+766	881	7187167989421167	tearCode.exe	640ae71930b3ec05
+1	381	7187182995493086	build.ninja	584e5cd9a5083903
+13	972	7187189027989291	CMakeFiles/tearCode.dir/srcs/balance_number.cpp.obj	df0808baa95955ec
+8	989	7187189028169297	CMakeFiles/tearCode.dir/srcs/LRU.cpp.obj	4b2ce76c746d120c
+3	1062	7187189028909274	CMakeFiles/tearCode.dir/main.cpp.obj	10c0456d55f65f7f
+8	731	7187189259798628	CMakeFiles/tearCode.dir/srcs/balance_number.cpp.obj	df0808baa95955ec
+4	894	7187189261428630	CMakeFiles/tearCode.dir/main.cpp.obj	10c0456d55f65f7f
+3	748	7187189513890668	CMakeFiles/tearCode.dir/srcs/balance_number.cpp.obj	df0808baa95955ec
+749	878	7187189515140657	tearCode.exe	b497886154e4c576
+2	716	7187189784400671	CMakeFiles/tearCode.dir/srcs/balance_number.cpp.obj	df0808baa95955ec
+716	850	7187189785700666	tearCode.exe	b497886154e4c576
+7	730	7187191251022348	CMakeFiles/tearCode.dir/srcs/balance_number.cpp.obj	df0808baa95955ec
+3	860	7187191252312353	CMakeFiles/tearCode.dir/main.cpp.obj	10c0456d55f65f7f
+860	981	7187191253482340	tearCode.exe	b497886154e4c576
